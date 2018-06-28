@@ -113,17 +113,32 @@ on_message_publish(Message, _Env) ->
     Retain = Message#mqtt_message.retain,
     Payload = Message#mqtt_message.payload,
     From = Message#mqtt_message.from,
-    Qos = Message#mqtt_message.qos,
+    QoS = Message#mqtt_message.qos,
     Pktid = Message#mqtt_message.pktid,
+    Timestamp = Message#mqtt_message.timestamp,
     {ClientId, Username} = From,
-    Str0 = <<"{\"topic\":\"">>,
-    Str1 = <<"\", \"deviceId\":\"">>,
-    Str2 = <<"\", \"payload\":[">>,
-    Str3 = <<"]}">>,
-    Str4 = <<Str0/binary, Topic/binary, Str1/binary, ClientId/binary, Str2/binary, Payload/binary, Str3/binary>>,
-	{ok, KafkaTopic} = application:get_env(emq_kafka_bridge, values),
+
+    Json = mochijson2:encode([
+        {type, <<"published">>},
+        {client_id, From},
+        {topic, Topic},
+        {payload, Payload},
+        {qos, QoS},
+        {cluster_node, node()},
+        {ts, emqttd_time:now_secs(Timestamp)}
+    ]),
+
+    {ok, KafkaTopic} = application:get_env(emq_kafka_bridge, values),
     ProduceTopic = proplists:get_value(kafka_payload_producer_topic, KafkaTopic),
-    ekaf:produce_async(ProduceTopic, Str4),	
+    ekaf:produce_async(ProduceTopic, list_to_binary(Json)),
+
+    %Str0 = <<"{\"topic\":\"">>,
+    %Str1 = <<"\", \"deviceId\":\"">>,
+    %Str2 = <<"\", \"payload\":[">>,
+    %Str3 = <<"]}">>,
+    %Str4 = <<Str0/binary, Topic/binary, Str1/binary, ClientId/binary, Str2/binary, Payload/binary, Str3/binary>>,
+
+    %ekaf:produce_async(ProduceTopic, Str4),
     {ok, Message}.
 
 
