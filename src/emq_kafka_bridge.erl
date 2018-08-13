@@ -62,7 +62,7 @@ on_client_connected(ConnAck, Client, _Env) ->
     Str3 = <<Str0/binary, ClientId/binary, Str1/binary, ConnectionType/binary, Str2/binary>>,
     {ok, KafkaTopic} = application:get_env(emq_kafka_bridge, values),
     ProduceTopic = proplists:get_value(kafka_events_producer_topic, KafkaTopic),
-    ekaf:produce_async(ProduceTopic, Str3),
+    ekaf:produce_async_batched(ProduceTopic, Str3),
     {ok, Client}.
 
 on_client_disconnected(Reason, _Client, _Env) ->
@@ -75,7 +75,7 @@ on_client_disconnected(Reason, _Client, _Env) ->
     Str3 = <<Str0/binary, ClientId/binary, Str1/binary, ConnectionType/binary, Str2/binary>>,
     {ok, KafkaTopic} = application:get_env(emq_kafka_bridge, values),
     ProduceTopic = proplists:get_value(kafka_events_producer_topic, KafkaTopic),
-    ekaf:produce_async(ProduceTopic, Str3),
+    ekaf:produce_async_batched(ProduceTopic, Str3),
     ok.
 
 on_client_subscribe(ClientId, Username, TopicTable, _Env) ->
@@ -131,7 +131,7 @@ on_message_publish(Message, _Env) ->
 
     {ok, KafkaTopic} = application:get_env(emq_kafka_bridge, values),
     ProduceTopic = proplists:get_value(kafka_payload_producer_topic, KafkaTopic),
-    ekaf:produce_async(ProduceTopic, list_to_binary(Json)),
+    ekaf:produce_async_batched(ProduceTopic, list_to_binary(Json)),
 
     %Str0 = <<"{\"topic\":\"">>,
     %Str1 = <<"\", \"deviceId\":\"">>,
@@ -157,6 +157,7 @@ ekaf_init(_Env) ->
     PartitionStrategy= proplists:get_value(partition_strategy, Values),
     application:set_env(ekaf, ekaf_partition_strategy, PartitionStrategy),
     application:set_env(ekaf, ekaf_bootstrap_broker, BootstrapBroker),
+    application:set_env(ekaf, ekaf_per_partition_workers, 50),
     {ok, _} = application:ensure_all_started(ekaf),
     io:format("Initialized ekaf with ~p~n", [{"localhost", 9092}]).
 
